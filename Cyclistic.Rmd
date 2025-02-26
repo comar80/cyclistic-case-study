@@ -1,0 +1,264 @@
+---
+title: "Cyclist Data Trips"
+author: "Marco Antonio Pereira Esteves"
+date: "2025-02-20"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r message=FALSE, warning=FALSE}
+# install.packages("tidyverse")
+library(tidyverse)
+
+# install.packages("data.table")
+library(data.table)
+
+library(conflicted)
+
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag", "dplyr")
+conflict_prefer("wday", "lubridate")
+```
+
+### Reading the .csv files and merging into one data frame:
+
+```{r message=FALSE, warning=FALSE}
+file_list <- list.files(pattern = "*.csv")
+
+trips_2024_df <- rbindlist(lapply(file_list, fread))
+
+head(trips_2024_df)
+```
+
+### Remove lat, long fields
+```{r message=FALSE, warning=FALSE}
+trips_2024_df <- trips_2024_df %>%  
+  select(-c(start_lat, start_lng, end_lat, end_lng))
+```
+
+### Add columns that list the date, month, day, and year of each ride
+
+```{r}
+trips_2024_df$date <- as.Date(trips_2024_df$started_at)
+trips_2024_df$month <- format(as.Date(trips_2024_df$date), "%m")
+trips_2024_df$day <- format(as.Date(trips_2024_df$date), "%d")
+trips_2024_df$year <- format(as.Date(trips_2024_df$date), "%Y")
+trips_2024_df$day_of_week <- format(as.Date(trips_2024_df$date), "%A")
+```
+
+### Add a "ride_length" calculations (in seconds)
+```{r}
+trips_2024_df$ride_length <- difftime(trips_2024_df$ended_at,trips_2024_df$started_at)
+```
+
+# Convert "ride_length" to numeric so we can run calculations on the data
+```{r}
+trips_2024_df$ride_length <- as.numeric(as.character(trips_2024_df$ride_length))
+is.numeric(trips_2024_df$ride_length)
+```
+
+### Cleaning bad data:
+
+```{r}
+trips_2024_df_clean <- trips_2024_df[!(trips_2024_df$start_station_name == "HQ QR" | trips_2024_df$ride_length<1),]
+```
+
+##### The total entries went from 5.860.568 to 5.858.968
+
+
+### Performing calculations with the ride length column:
+
+#### Ride Length Mean
+
+```{r}
+mean_trips <- mean(trips_2024_df_clean$ride_length)
+
+mean_trips_hms <- round(seconds_to_period(mean_trips))
+
+print(mean_trips_hms)
+```
+
+### Median Ride Length
+
+```{r}
+median_trips <- median(trips_2024_df_clean$ride_length)
+
+median_trips_hms <- round(seconds_to_period(median_trips))
+
+print(median_trips_hms)
+```
+
+
+#### Max Ride Length
+
+```{r}
+max_trips <- max(trips_2024_df_clean$ride_length)
+
+max_trips_hms <- round(seconds_to_period(max_trips))
+
+print(max_trips_hms)
+```
+
+#### Min Ride Length
+
+```{r}
+min_trips <- min(trips_2024_df_clean$ride_length)
+
+min_trips_hms <- round(seconds_to_period(min_trips))
+
+print(min_trips_hms)
+```
+
+
+#### Most ocurring day of week
+
+```{r}
+freq_table <- table(trips_2024_df_clean$day_of_week)
+modes <- names(freq_table[freq_table == max(freq_table)])
+print(modes)
+```
+
+#### Least ocurring day of week
+
+```{r}
+freq_table <- table(trips_2024_df_clean$day_of_week)
+modes <- names(freq_table[freq_table == min(freq_table)])
+print(modes)
+```
+
+#### Average ride length for casual and member riders
+
+```{r}
+total_avg_ride_duration <- trips_2024_df_clean %>%
+  group_by(member_casual) %>%
+  summarise(avg_seconds = mean(ride_length, na.rm = TRUE)) %>%
+  mutate(avg_time = seconds_to_period(round(avg_seconds))) %>%
+  select(member_casual, avg_seconds)
+print(total_avg_ride_duration)
+```
+
+#### Average ride length for users by day of the week
+
+```{r}
+trips_2024_df_clean %>%
+  group_by(day_of_week) %>%
+  summarise(avg_seconds = mean(ride_length, na.rm = TRUE)) %>%
+  mutate(avg_time = seconds_to_period(round(avg_seconds))) %>%
+  select(day_of_week, avg_time)
+```
+
+#### Total rides for users by day of the week
+
+```{r message=FALSE, warning=FALSE}
+total_rides_by_day <- trips_2024_df_clean %>%
+  group_by(day_of_week, member_casual) %>%
+  summarise(total_rides = n())
+
+print(total_rides_by_day)
+```
+
+#### Compare members and casual users
+```{r}
+aggregate(trips_2024_df_clean$ride_length ~ trips_2024_df_clean$member_casual, FUN = mean)
+aggregate(trips_2024_df_clean$ride_length ~ trips_2024_df_clean$member_casual, FUN = median)
+aggregate(trips_2024_df_clean$ride_length ~ trips_2024_df_clean$member_casual, FUN = max)
+aggregate(trips_2024_df_clean$ride_length ~ trips_2024_df_clean$member_casual, FUN = min)
+```
+
+
+#### See the average ride time by each day for members vs casual users
+```{r}
+trips_2024_df_clean$day_of_week <- ordered(trips_2024_df_clean$day_of_week, levels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+
+aggregate(trips_2024_df_clean$ride_length ~ trips_2024_df_clean$member_casual + trips_2024_df_clean$day_of_week, FUN = mean)
+```
+
+#### Analyze ridership data by type and weekday
+```{r message=FALSE, warning=FALSE}
+trips_2024_df_clean %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>%  
+  group_by(member_casual, weekday) %>%  
+  summarise(number_of_rides = n()							 
+            ,average_duration = mean(ride_length)) %>% 		
+  arrange(member_casual, weekday)
+```
+
+
+#### Visualization for the number of rides by rider type
+
+```{r message=FALSE, warning=FALSE}
+trips_2024_df_clean %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Number of Rides by User Type and Day of the Week",
+    subtitle = "Comparing casual and member riders across weekdays",
+    x = "Day of the Week",
+    y = "Number of Rides",
+    fill = "User Type"
+  )  +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal()
+```
+
+
+#### Visualization for average duration
+
+```{r message=FALSE, warning=FALSE}
+
+trips_2024_df_clean %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Average Duration by User Type and Day of the Week",
+    subtitle = "Comparing casual and member riders across weekdays",
+    x = "Day of the Week",
+    y = "Average Duration (in seconds)",
+    fill = "User Type"
+  )  +
+  theme_minimal()
+```
+
+#### Visualization for total average duration
+
+```{r}
+
+trips_2024_df_clean %>%
+  group_by(member_casual) %>%
+  summarise(avg_seconds = mean(ride_length, na.rm = TRUE)) %>%
+  mutate(avg_time = seconds_to_period(round(avg_seconds))) %>%
+  select(member_casual, avg_time)  %>% 
+  ggplot(aes(x = member_casual, y = avg_time, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Total Average Duration by User Type",
+    subtitle = "Comparing casual and member riders",
+    x = "Member Type",
+    y = "Average Duration",
+    fill = "User Type"
+  )  +
+  theme_minimal()
+```
+
+
+#### Export
+```{r}
+avg_ride_length <- aggregate(trips_2024_df_clean$ride_length ~ trips_2024_df_clean$member_casual + trips_2024_df_clean$day_of_week, FUN = mean)
+write.csv(avg_ride_length, file = 'avg_ride_length.csv')
+
+write.csv(total_rides_by_day, file = 'total_rides_users_wday.csv')
+
+write.csv(total_avg_ride_duration, file = 'total_avg_ride_duration.csv')
+
+```
