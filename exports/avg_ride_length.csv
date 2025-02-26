@@ -1,0 +1,15 @@
+"","trips_2024_df_clean$member_casual","trips_2024_df_clean$day_of_week","trips_2024_df_clean$ride_length"
+"1","casual","Sunday",1765.86354789357
+"2","member","Sunday",856.600394285917
+"3","casual","Monday",1448.72996153237
+"4","member","Monday",732.792341316185
+"5","casual","Tuesday",1291.23225073521
+"6","member","Tuesday",737.169292812402
+"7","casual","Wednesday",1337.05338758133
+"8","member","Wednesday",747.255433691989
+"9","casual","Thursday",1314.81734572664
+"10","member","Thursday",735.604277964553
+"11","casual","Friday",1471.9484805402
+"12","member","Friday",745.621157485777
+"13","casual","Saturday",1692.05748858776
+"14","member","Saturday",844.818308560463
