@@ -1,8 +1,8 @@
 # Cyclistic Case Study
 A data analysis case study using RStudio and Tableau
 
-### [Presentation](https://github.com/comar80/cyclistic-case-study/blob/main/Presentation.pdf)
-Project's goals, analysis and findings are here
+### Presentation
+Project's goals, analysis and findings are [here](https://github.com/comar80/cyclistic-case-study/blob/main/Presentation.pdf)
 
 ### Visuals made with Tableau
 
